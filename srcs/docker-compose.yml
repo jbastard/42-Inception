@@ -1,0 +1,80 @@
+services:
+  nginx:
+    container_name: nginx
+    hostname: backend
+    build:
+      context: ./requirements/nginx
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - Inception
+    healthcheck:
+      test: ["CMD-SHELL", "ping -c1 nginx || exit 1"]
+      interval: 2s
+      timeout: 10s
+      retries: 5
+
+  wordpress:
+    container_name: wordpress
+    hostname: wordpress
+    build:
+      context: ./requirements/wordpress
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - Inception
+    healthcheck:
+      test: ["CMD-SHELL", "netcat -z wordpress 9000 || exit 1"]
+      interval: 2s
+      timeout: 10s
+      retries: 5
+
+  mariadb:
+    container_name: mariadb
+    hostname: mariadb
+    volumes:
+      - mariadb:/var/lib/mysql
+    build:
+      context: ./requirements/mariadb
+    env_file:
+      - .env
+    networks:
+      - Inception
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -u${MDB_USER} -p${MDB_PWD} || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/jbastard/data/mysql
+      o: bind
+
+  wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/jbastard/data/wordpress
+      o: bind
+
+networks:
+  Inception:
+    name: Inception
+    driver: bridge
